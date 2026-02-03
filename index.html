@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <title>Misiunea Ioan 14-16</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --text-dim: #94a3b8;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+        .container { max-width: 800px; margin: 0 auto; padding-bottom: 40px; }
+
+        /* HEADER */
+        header { text-align: center; margin-bottom: 25px; margin-top: 10px; }
+        h1 { margin: 0; font-size: 1.5rem; font-weight: 800; }
+        .subtitle { font-size: 0.85rem; color: var(--text-dim); margin-top: 5px; }
+
+        /* SECTIUNI */
+        .section-label {
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);
+            margin-bottom: 10px; font-weight: 700; display: flex; align-items: center; gap: 5px;
+        }
+
+        /* CARDURI GENERALE */
+        .card { background: var(--card); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 25px; }
+
+        /* MANA (GLOBAL) */
+        .mana-card {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 8px 20px -5px rgba(37, 99, 235, 0.5);
+            text-align: center;
+        }
+        .big-number { font-size: 3.5rem; font-weight: 800; line-height: 1; margin: 10px 0; }
+        .target-text { font-size: 0.9rem; opacity: 0.9; }
+
+        /* BARĂ DE PROGRES STANDARD */
+        .progress-container { background: rgba(0,0,0,0.3); height: 10px; border-radius: 5px; margin-top: 10px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; transition: width 1s ease; border-radius: 5px; }
+        .bg-blue { background: #60a5fa; }
+        .bg-green { background: #34d399; }
+        .bg-yellow { background: #facc15; }
+
+        /* ECHIPE */
+        .teams-grid { display: grid; gap: 15px; grid-template-columns: 1fr; }
+        @media(min-width: 600px) { .teams-grid { grid-template-columns: 1fr 1fr; } }
+
+        .team-card { display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; }
+        .team-meta { display: flex; justify-content: space-between; align-items: flex-end; }
+        .team-score { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+        .team-target-label { font-size: 0.75rem; color: var(--text-dim); }
+
+        .team-avatars { display: flex; margin-bottom: 5px; }
+        .t-avatar { width: 45px; height: 45px; border-radius: 50%; border: 3px solid var(--card); margin-left: -10px; }
+        .t-avatar:first-child { margin-left: 0; }
+
+        .team-msg { font-size: 0.85rem; color: #fbbf24; font-weight: 600; margin-top: 5px; }
+
+        /* INDIVIDUAL */
+        .user-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .user-left { display: flex; align-items: center; gap: 10px; }
+        .u-avatar { width: 35px; height: 35px; border-radius: 50%; background: #334155; }
+        .u-name { font-weight: 600; font-size: 0.95rem; }
+        .u-stats { text-align: right; }
+        .u-val { font-weight: 700; font-size: 1rem; color: var(--text); }
+        .u-target { font-size: 0.75rem; color: var(--text-dim); }
+
+        .loading { text-align: center; padding: 40px; color: var(--text-dim); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Ioan 14-16</h1>
+        <div class="subtitle" id="week-badge">Săptămâna ...</div>
+    </header>
+
+    <div class="section-label"><i class="ri-flag-fill"></i> Obiectivul Grupei</div>
+    <div class="card mana-card" id="mana-container">
+        <div class="loading">Se calculează totalul...</div>
+    </div>
+
+    <div class="section-label" id="team-strategy-label"><i class="ri-group-fill"></i> Echipe</div>
+    <div class="teams-grid" id="teams-grid">
+    </div>
+
+    <div class="section-label" style="margin-top: 30px;"><i class="ri-user-smile-fill"></i> Progres Individual</div>
+    <div class="card" style="padding: 10px 20px;">
+        <div id="individual-list">
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURARE ---
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRdVFnXKKZrGCNZJtG5AcId2syvz8xuIXDLE6DW100lXWpodskdZoBxpNeNIndunbMrg2xlv7uMhq-n/pub?gid=0&single=true&output=csv';
+    const TARGET_PER_PERSON = 91;
+
+    // --- LOGICA ---
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchAndProcess();
+    });
+
+    async function fetchAndProcess() {
+        try {
+            // Adaugam un timestamp la finalul URL-ului pentru a forta browserul sa ia date noi
+            const cacheBuster = '&t=' + new Date().getTime();
+            const res = await fetch(SHEET_URL + cacheBuster, { cache: "no-store" });
+            const csv = await res.text();
+            processData(parseCSV(csv));
+        } catch(e) {
+            document.querySelector('.container').innerHTML = `<h3 style="text-align:center;color:#ef4444">Eroare încărcare date.</h3>`;
+        }
+    }
+
+    function parseCSV(csv) {
+        const lines = csv.split("\n").filter(l => l.trim());
+        const weekNumber = parseInt(lines[1].split(",")[2]) || 1;
+        const users = [];
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",");
+            const nume = cols[0].trim();
+            const total = parseInt(cols[1]) || 0;
+            if(nume) users.push({ nume, total });
+        }
+        return { users, weekNumber };
+    }
+
+    function processData({ users, weekNumber }) {
+        // Update Header Badge
+        const isRandom = weekNumber % 2 === 0;
+        const badge = document.getElementById('week-badge');
+        badge.innerText = `Săptămâna ${weekNumber} • ${isRandom ? "Echipe Random" : "Echipe Suport"}`;
+
+        renderMana(users);
+        renderIndividual(users);
+
+        const teams = generateTeams(users, isRandom, weekNumber);
+        renderTeams(teams);
+    }
+
+    function renderMana(users) {
+        const current = users.reduce((acc, u) => acc + u.total, 0);
+        const target = users.length * TARGET_PER_PERSON;
+        const percent = Math.min((current / target) * 100, 100);
+
+        const html = `
+            <div style="font-size:0.9rem; opacity:0.9">Total Versete Adunate</div>
+            <div class="big-number">${current}</div>
+            <div class="target-text">din <b>${target}</b> necesare la nivel de grup</div>
+            <div class="progress-container">
+                <div class="progress-fill bg-blue" style="width: ${percent}%"></div>
+            </div>
+            <div style="margin-top:10px; font-size:0.8rem">Am parcurs ${Math.round(percent)}% din text împreună!</div>
+        `;
+        document.getElementById('mana-container').innerHTML = html;
+    }
+
+    function renderTeams(teams) {
+        let html = '';
+        teams.forEach(members => {
+            const currentTeam = members.reduce((acc, m) => acc + m.total, 0);
+            const targetTeam = members.length * TARGET_PER_PERSON;
+            const left = targetTeam - currentTeam;
+            const percent = Math.min((currentTeam / targetTeam) * 100, 100);
+
+            // Generare nume și avatare
+            const names = members.map(m => m.nume.split(' ')[0]).join(' & ');
+            let avatars = '';
+            members.forEach(m => {
+                avatars += `<img src="https://ui-avatars.com/api/?name=${m.nume}&background=random&color=fff&bold=true" class="t-avatar">`;
+            });
+
+            // Mesaj dinamic bazat pe cat le lipseste
+            let msg = `Mai aveți de strâns <b>${left}</b> versete!`;
+            if(left <= 0) msg = `✨ Echipă Completă! Felicitări!`;
+            else if(percent > 80) msg = `Încă puțin! Doar <b>${left}</b> versete.`;
+
+            html += `
+                <div class="card team-card" style="margin-bottom:0">
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <div class="team-avatars">${avatars}</div>
+                        <div style="text-align:right">
+                            <div style="font-weight:700; font-size:1rem">${names}</div>
+                            <div style="font-size:0.75rem; color:#94a3b8">Putere Echipă</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:10px">
+                        <div class="team-meta">
+                            <span class="team-score">${currentTeam}</span>
+                            <span class="team-target-label">/ ${targetTeam} versete</span>
+                        </div>
+                        <div class="progress-container" style="background:rgba(255,255,255,0.1)">
+                            <div class="progress-fill bg-green" style="width: ${percent}%"></div>
+                        </div>
+                        <div class="team-msg">${msg}</div>
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById('teams-grid').innerHTML = html;
+    }
+
+    function renderIndividual(users) {
+        const sorted = [...users].sort((a, b) => a.nume.localeCompare(b.nume));
+        let html = '';
+        sorted.forEach(u => {
+            const percent = Math.min((u.total / TARGET_PER_PERSON) * 100, 100);
+            html += `
+                <div class="user-row">
+                    <div class="user-left">
+                        <img src="https://ui-avatars.com/api/?name=${u.nume}&background=0f172a&color=fff" class="u-avatar">
+                        <span class="u-name">${u.nume}</span>
+                    </div>
+                    <div class="u-stats">
+                        <div class="u-val">${u.total} <span style="font-size:0.7rem; font-weight:400; color:#64748b">/ ${TARGET_PER_PERSON}</span></div>
+                        <div style="width:80px; height:4px; background:#334155; border-radius:2px; margin-top:4px; margin-left:auto">
+                            <div style="width:${percent}%; height:100%; background:#60a5fa; border-radius:2px"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById('individual-list').innerHTML = html;
+    }
+
+    function generateTeams(users, isRandom, seed) {
+        let pool = [...users];
+        const teams = [];
+        if (isRandom) {
+            pool = seededShuffle(pool, seed);
+            while(pool.length) {
+                teams.push(pool.splice(0, 2)); // Ia cate 2
+                if(teams[teams.length-1].length === 1 && teams.length > 1) {
+                    // Daca a ramas unul singur, il punem la echipa anterioara (Tripla)
+                    teams[teams.length-2].push(teams.pop()[0]);
+                }
+            }
+        } else {
+            pool.sort((a, b) => b.total - a.total);
+            let left = 0, right = pool.length - 1;
+            while(left < right) {
+                teams.push([pool[left], pool[right]]);
+                left++; right--;
+            }
+            if(left === right) {
+                if(teams.length > 0) teams[teams.length-1].push(pool[left]);
+                else teams.push([pool[left]]);
+            }
+        }
+        return teams;
+    }
+
+    function seededShuffle(array, seed) {
+        let m = array.length, t, i;
+        const random = () => { var x = Math.sin(seed++) * 10000; return x - Math.floor(x); }
+        while (m) { i = Math.floor(random() * m--); t = array[m]; array[m] = array[i]; array[i] = t; }
+        return array;
+    }
+</script>
+</body>
+</html>
