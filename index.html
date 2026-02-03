@@ -25,9 +25,29 @@
         .container { max-width: 800px; margin: 0 auto; padding-bottom: 40px; }
 
         /* HEADER */
-        header { text-align: center; margin-bottom: 25px; margin-top: 10px; }
-        h1 { margin: 0; font-size: 1.5rem; font-weight: 800; }
-        .subtitle { font-size: 0.85rem; color: var(--text-dim); margin-top: 5px; }
+        header { text-align: center; margin-bottom: 30px; margin-top: 10px; }
+        h1 { margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 5px; }
+        .subtitle { font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+
+        /* INFO BOX (NOU) */
+        .info-box {
+            background: rgba(30, 41, 59, 0.5); /* Semi-transparent */
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 280px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .info-row { display: flex; align-items: center; gap: 12px; justify-content: center; }
+        .info-icon { color: var(--accent); font-size: 1.1rem; }
+        .info-content { text-align: left; }
+        .info-label { display: block; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .info-text { display: block; color: #fff; font-weight: 700; font-size: 0.95rem; }
 
         /* SECTIUNI */
         .section-label {
@@ -52,7 +72,6 @@
         .progress-fill { height: 100%; transition: width 1s ease; border-radius: 5px; }
         .bg-blue { background: #60a5fa; }
         .bg-green { background: #34d399; }
-        .bg-yellow { background: #facc15; }
 
         /* ECHIPE */
         .teams-grid { display: grid; gap: 15px; grid-template-columns: 1fr; }
@@ -79,7 +98,23 @@
         .u-name { font-weight: 600; font-size: 0.95rem; }
         .u-stats { text-align: right; }
         .u-val { font-weight: 700; font-size: 1rem; color: var(--text); }
-        .u-target { font-size: 0.75rem; color: var(--text-dim); }
+
+        /* MODIFICARE: BARA MAI MARE SI MAI LUNGA */
+        .u-bar-track {
+            width: 120px;       /* Lungime crescuta (era 80px) */
+            height: 8px;        /* Grosime crescuta (era 4px) */
+            background: #334155;
+            border-radius: 4px;
+            margin-top: 6px;
+            margin-left: auto;
+            overflow: hidden;
+        }
+        .u-bar-fill {
+            height: 100%;
+            background: #60a5fa;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
 
         .loading { text-align: center; padding: 40px; color: var(--text-dim); }
     </style>
@@ -90,6 +125,23 @@
     <header>
         <h1>Ioan 14-16</h1>
         <div class="subtitle" id="week-badge">Săptămâna ...</div>
+
+        <div class="info-box">
+            <div class="info-row">
+                <i class="ri-book-open-line info-icon"></i>
+                <div class="info-content">
+                    <span class="info-label">De învățat:</span>
+                    <span class="info-text" id="passage-badge">...</span>
+                </div>
+            </div>
+            <div class="info-row" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                <i class="ri-calendar-event-line info-icon" style="color:#facc15"></i>
+                <div class="info-content">
+                    <span class="info-label">Ne vedem:</span>
+                    <span class="info-text" id="date-badge">...</span>
+                </div>
+            </div>
+        </div>
     </header>
 
     <div class="section-label"><i class="ri-flag-fill"></i> Obiectivul Grupei</div>
@@ -120,19 +172,29 @@
 
     async function fetchAndProcess() {
         try {
-            // Adaugam un timestamp la finalul URL-ului pentru a forta browserul sa ia date noi
             const cacheBuster = '&t=' + new Date().getTime();
             const res = await fetch(SHEET_URL + cacheBuster, { cache: "no-store" });
             const csv = await res.text();
-            processData(parseCSV(csv));
+            const parsed = parseCSV(csv);
+            processData(parsed);
         } catch(e) {
-            document.querySelector('.container').innerHTML = `<h3 style="text-align:center;color:#ef4444">Eroare încărcare date.</h3>`;
+            console.error(e);
+            document.querySelector('.container').innerHTML = `<h3 style="text-align:center;color:#ef4444;margin-top:50px">Eroare încărcare date.<br><small>Verifică conexiunea</small></h3>`;
         }
     }
 
     function parseCSV(csv) {
         const lines = csv.split("\n").filter(l => l.trim());
-        const weekNumber = parseInt(lines[1].split(",")[2]) || 1;
+
+        // CITIREA METADATELOR (Rândul 2 din Excel = index 1 aici)
+        // Structura asteptata: Nume, Total, Saptamana, Pasaj (D), Data (E)
+        const metaRow = lines[1].split(",");
+
+        const weekNumber = parseInt(metaRow[2]) || 1;
+        // Citim coloana D (index 3) si E (index 4).
+        const passage = metaRow[3] ? metaRow[3].trim() : "Toate capitolele";
+        const meetingDate = metaRow[4] ? metaRow[4].trim() : "Va fi anunțat";
+
         const users = [];
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(",");
@@ -140,18 +202,21 @@
             const total = parseInt(cols[1]) || 0;
             if(nume) users.push({ nume, total });
         }
-        return { users, weekNumber };
+        return { users, weekNumber, passage, meetingDate };
     }
 
-    function processData({ users, weekNumber }) {
-        // Update Header Badge
-        const isRandom = weekNumber % 2 === 0;
-        const badge = document.getElementById('week-badge');
-        badge.innerText = `Săptămâna ${weekNumber} • ${isRandom ? "Echipe Random" : "Echipe Suport"}`;
+    function processData({ users, weekNumber, passage, meetingDate }) {
+        // 1. Update Header Info
+        const isRandom = weekNumber % 2 === 1;
+        document.getElementById('week-badge').innerText = `SĂPTĂMÂNA ${weekNumber} • ${isRandom ? "ECHIPE RANDOM" : "ECHIPE SUPORT"}`;
 
+        // Injectam Pasajul si Data
+        document.getElementById('passage-badge').innerText = passage;
+        document.getElementById('date-badge').innerText = meetingDate;
+
+        // 2. Render restul aplicatiei
         renderMana(users);
         renderIndividual(users);
-
         const teams = generateTeams(users, isRandom, weekNumber);
         renderTeams(teams);
     }
@@ -181,14 +246,12 @@
             const left = targetTeam - currentTeam;
             const percent = Math.min((currentTeam / targetTeam) * 100, 100);
 
-            // Generare nume și avatare
             const names = members.map(m => m.nume.split(' ')[0]).join(' & ');
             let avatars = '';
             members.forEach(m => {
                 avatars += `<img src="https://ui-avatars.com/api/?name=${m.nume}&background=random&color=fff&bold=true" class="t-avatar">`;
             });
 
-            // Mesaj dinamic bazat pe cat le lipseste
             let msg = `Mai aveți de strâns <b>${left}</b> versete!`;
             if(left <= 0) msg = `✨ Echipă Completă! Felicitări!`;
             else if(percent > 80) msg = `Încă puțin! Doar <b>${left}</b> versete.`;
@@ -199,7 +262,6 @@
                         <div class="team-avatars">${avatars}</div>
                         <div style="text-align:right">
                             <div style="font-weight:700; font-size:1rem">${names}</div>
-                            <div style="font-size:0.75rem; color:#94a3b8">Putere Echipă</div>
                         </div>
                     </div>
 
@@ -232,8 +294,8 @@
                     </div>
                     <div class="u-stats">
                         <div class="u-val">${u.total} <span style="font-size:0.7rem; font-weight:400; color:#64748b">/ ${TARGET_PER_PERSON}</span></div>
-                        <div style="width:80px; height:4px; background:#334155; border-radius:2px; margin-top:4px; margin-left:auto">
-                            <div style="width:${percent}%; height:100%; background:#60a5fa; border-radius:2px"></div>
+                        <div class="u-bar-track">
+                            <div class="u-bar-fill" style="width:${percent}%"></div>
                         </div>
                     </div>
                 </div>
@@ -248,9 +310,8 @@
         if (isRandom) {
             pool = seededShuffle(pool, seed);
             while(pool.length) {
-                teams.push(pool.splice(0, 2)); // Ia cate 2
+                teams.push(pool.splice(0, 2));
                 if(teams[teams.length-1].length === 1 && teams.length > 1) {
-                    // Daca a ramas unul singur, il punem la echipa anterioara (Tripla)
                     teams[teams.length-2].push(teams.pop()[0]);
                 }
             }
