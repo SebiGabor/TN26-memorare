@@ -342,15 +342,24 @@
             const percent = Math.min((u.total / TARGET_PER_PERSON) * 100, 100);
             const badges = getBadges(u.total);
 
+            const lastVerse = getLastVerse(u.total);
+
             html += `
                 <div class="user-row">
                     <div class="user-left">
                         <img src="https://ui-avatars.com/api/?name=${u.nume}&background=0f172a&color=fff" class="u-avatar">
-                        <span class="u-name">
-                            ${u.nume}
-                            <span class="u-badges">${badges}</span>
-                        </span>
+
+                        <div style="display:flex; flex-direction:column; justify-content:center; margin-left: 10px;">
+                            <span class="u-name">
+                                ${u.nume}
+                                <span class="u-badges">${badges}</span>
+                            </span>
+                            <span style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
+                                Ultimul verset: ${lastVerse}
+                            </span>
+                        </div>
                     </div>
+
                     <div class="u-stats">
                         <div class="u-val">${u.total} <span style="font-size:0.7rem; font-weight:400; color:#64748b">/ ${TARGET_PER_PERSON}</span></div>
                         <div class="u-bar-track">
@@ -394,6 +403,14 @@
         const random = () => { var x = Math.sin(seed++) * 10000; return x - Math.floor(x); }
         while (m) { i = Math.floor(random() * m--); t = array[m]; array[m] = array[i]; array[i] = t; }
         return array;
+    }
+
+    function getLastVerse(n) {
+        if (n <= 0) return "Niciun verset";
+        if (n <= 31) return `Ioan 14:${n}`;
+        if (n <= 58) return `Ioan 15:${n - 31}`;
+        if (n <= 91) return `Ioan 16:${n - 58}`;
+        return "Finalizat";
     }
 </script>
 </body>
