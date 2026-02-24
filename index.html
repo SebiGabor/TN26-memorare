@@ -145,6 +145,33 @@
         .u-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.5s ease; }
 
         .loading { text-align: center; padding: 40px; color: var(--text-dim); }
+
+        /* --- MARKERE CAPITOLE (MILESTONES) --- */
+        .u-bar-track, .mana-progress-track, .progress-container { position: relative; }
+        .milestone { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.6); z-index: 5; box-shadow: 0 0 3px rgba(0,0,0,0.5); }
+        .m-c14 { left: 34%; }   /* 31 din 91 versete */
+        .m-c15 { left: 63.7%; } /* 58 din 91 versete */
+
+        /* --- MODAL ANTRENAMENT --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); z-index: 1000;
+            display: flex; justify-content: center; align-items: center; padding: 15px;
+        }
+        .modal-card {
+            background: var(--card); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh;
+            display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .modal-header h3 { margin: 0; font-size: 1.2rem; }
+        .close-btn { background: none; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; }
+        .modal-controls { display: flex; gap: 10px; padding: 15px 20px; background: rgba(0,0,0,0.2); }
+        .ctrl-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: transparent; color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .ctrl-btn.active { background: var(--accent); }
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; font-size: 1.1rem; line-height: 1.6; }
+        .verse-block { margin-bottom: 15px; }
+        .v-num { font-weight: bold; color: var(--accent); margin-right: 5px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -172,6 +199,10 @@
         </div>
 
         <div class="resources-row">
+            <button onclick="openModal()" class="resource-btn" style="cursor:pointer; font-family: inherit;">
+                <i class="ri-lightbulb-flash-line res-icon" style="color:#10b981"></i>
+                <span class="res-text">Antrenament</span>
+            </button>
             <a href="https://drive.google.com/file/d/1O74B1Nl0pEadZ8O_f9DN1NyuV41d_o3W/view" target="_blank" class="resource-btn">
                 <i class="ri-book-read-line res-icon" style="color:#60a5fa"></i>
                 <span class="res-text">Citește</span>
@@ -195,6 +226,28 @@
     <div class="section-label" style="margin-top: 30px;"><i class="ri-user-smile-fill"></i> Progres Individual</div>
     <div class="card" style="padding: 10px 20px;">
         <div id="individual-list">
+        </div>
+    </div>
+
+    <div id="antrenament-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="ri-brain-line"></i> Antrenament</h3>
+                <button class="close-btn" onclick="closeModal()"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="modal-controls" style="flex-wrap: wrap; gap: 10px;">
+                <div style="width: 100%; display: flex; gap: 5px;">
+                    <button class="ctrl-btn active" id="btn-c14" onclick="setChapter(14)" style="background: #3b82f6; border-color: #3b82f6;">Ioan 14</button>
+                    <button class="ctrl-btn" id="btn-c15" onclick="setChapter(15)">Ioan 15</button>
+                    <button class="ctrl-btn" id="btn-c16" onclick="setChapter(16)">Ioan 16</button>
+                </div>
+                <div style="width: 100%; display: flex; gap: 5px;">
+                    <button class="ctrl-btn active" id="btn-normal" onclick="setMode('normal')" style="border-color: #94a3b8">Text Normal</button>
+                    <button class="ctrl-btn" id="btn-litere" onclick="setMode('litere')" style="border-color: #facc15; color: #facc15">Prima Literă</button>
+                </div>
+            </div>
+            <div class="modal-body" id="antrenament-text">
+            </div>
         </div>
     </div>
 </div>
@@ -363,6 +416,8 @@
                     <div class="u-stats">
                         <div class="u-val">${u.total} <span style="font-size:0.7rem; font-weight:400; color:#64748b">/ ${TARGET_PER_PERSON}</span></div>
                         <div class="u-bar-track">
+                            <div class="milestone m-c14" title="Final Ioan 14"></div>
+                            <div class="milestone m-c15" title="Final Ioan 15"></div>
                             <div class="u-bar-fill" style="width:${percent}%"></div>
                         </div>
                     </div>
@@ -373,7 +428,7 @@
     }
 
     function generateTeams(users, isRandom, seed) {
-        let pool = [...users];
+        let pool = [...users].sort((a, b) => a.nume.localeCompare(b.nume));
         const teams = [];
         if (isRandom) {
             pool = seededShuffle(pool, seed);
@@ -411,6 +466,112 @@
         if (n <= 58) return `Ioan 15:${n - 31}`;
         if (n <= 91) return `Ioan 16:${n - 58}`;
         return "Finalizat";
+    }
+
+    // === COD ANTRENAMENT CU FIȘIERE .TXT ===
+
+    // Aici vom salva textele după ce le descărcăm prima dată
+    let BIBLE_TEXT = { 14: [], 15: [], 16: [] };
+    let isTextLoaded = false;
+    let currentMode = 'normal';
+    let currentChapter = 14;
+
+    // Funcția care descarcă fișierele .txt
+    async function fetchBibleTexts() {
+        const container = document.getElementById('antrenament-text');
+        container.innerHTML = '<div class="loading">Se descarcă textele... <i class="ri-loader-4-line ri-spin"></i></div>';
+
+        try {
+            // Descărcăm toate cele 3 fișiere în același timp
+            const [res14, res15, res16] = await Promise.all([
+                fetch('ioan14.txt'),
+                fetch('ioan15.txt'),
+                fetch('ioan16.txt')
+            ]);
+
+            const [text14, text15, text16] = await Promise.all([
+                res14.text(), res15.text(), res16.text()
+            ]);
+
+            // Împărțim textul pe rânduri (la fiecare Enter) și eliminăm rândurile goale
+            BIBLE_TEXT[14] = text14.split('\n').filter(line => line.trim() !== '');
+            BIBLE_TEXT[15] = text15.split('\n').filter(line => line.trim() !== '');
+            BIBLE_TEXT[16] = text16.split('\n').filter(line => line.trim() !== '');
+
+            isTextLoaded = true;
+            renderText(); // Afișăm textul după ce s-a încărcat
+        } catch (error) {
+            console.error("Eroare la descărcarea textelor:", error);
+            container.innerHTML = '<div style="color:#ef4444; padding:20px;">Eroare: Nu am putut găsi fișierele .txt. Verifică dacă se numesc ioan14.txt, ioan15.txt, ioan16.txt și dacă sunt în același folder cu index.html.</div>';
+        }
+    }
+
+    window.openModal = async function() {
+        document.getElementById('antrenament-modal').style.display = 'flex';
+
+        // Dacă textele nu au fost deja descărcate, le descărcăm acum
+        if (!isTextLoaded) {
+            await fetchBibleTexts();
+        } else {
+            renderText();
+        }
+    };
+
+    window.closeModal = function() {
+        document.getElementById('antrenament-modal').style.display = 'none';
+    };
+
+    window.setMode = function(mode) {
+        currentMode = mode;
+        document.getElementById('btn-normal').classList.toggle('active', mode === 'normal');
+        document.getElementById('btn-litere').classList.toggle('active', mode === 'litere');
+        renderText();
+    };
+
+    window.setChapter = function(chapter) {
+        currentChapter = chapter;
+
+        [14, 15, 16].forEach(c => {
+            const btn = document.getElementById(`btn-c${c}`);
+            if(c === chapter) {
+                btn.classList.add('active');
+                btn.style.background = '#3b82f6';
+            } else {
+                btn.classList.remove('active');
+                btn.style.background = 'transparent';
+            }
+        });
+
+        renderText();
+    };
+
+    function transformToFirstLetter(text) {
+        return text.replace(/\p{L}+/gu, function(word) {
+            if(word.length === 1) return word;
+            return word.charAt(0) + '_'.repeat(word.length - 1);
+        });
+    }
+
+    function renderText() {
+        if (!isTextLoaded) return; // Ne asigurăm că avem textul înainte să desenăm
+
+        const container = document.getElementById('antrenament-text');
+        let html = '';
+
+        const chapterVerses = BIBLE_TEXT[currentChapter];
+
+        chapterVerses.forEach((text, index) => {
+            let verseNum = index + 1;
+            let displayText = currentMode === 'litere' ? transformToFirstLetter(text) : text;
+
+            html += `<div class="verse-block">
+                        <span class="v-num" style="color:#facc15">${currentChapter}:${verseNum}</span>
+                        <span>${displayText}</span>
+                     </div>`;
+        });
+
+        container.innerHTML = html;
+        document.getElementById('antrenament-text').scrollTop = 0;
     }
 </script>
 </body>
